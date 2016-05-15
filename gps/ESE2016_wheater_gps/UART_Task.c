@@ -49,8 +49,12 @@
 
 #include "BoosterPack.h"
 #include "ClockTask.h"
+#include "GPSTask.h"
 
 static void TransferFunction(UArg arg0, UArg arg1);
+
+// at maximum 80 characters are transferred
+static char result[80 + 1]; // +1 for \0, must be transferred
 
 /**
  * /fn ButtonFunction
@@ -58,11 +62,10 @@ static void TransferFunction(UArg arg0, UArg arg1);
  * /param arg not used.
  * /return void.
  */
-static void ButtonFunction(UArg arg)
-{
+static void ButtonFunction(UArg arg) {
 	GPIOIntClear(GPIO_PORTJ_BASE, GPIO_PIN_0);
 	/* turn off led 1 */
-    GPIOPinWrite(GPIO_PORTN_BASE, GPIO_PIN_1, 0);
+	GPIOPinWrite(GPIO_PORTN_BASE, GPIO_PIN_1, 0);
 }
 
 /**
@@ -70,46 +73,46 @@ static void ButtonFunction(UArg arg)
  * /brief Initialize led D1 und USR SW1.
  * /return void.
  */
-static void InitializeLedUserSwitch()
-{
-    uint32_t strength;
-    uint32_t pinType;
-    Hwi_Params buttonHWIParams;
-    Hwi_Handle buttonHwi;
-    Error_Block eb;
+static void InitializeLedUserSwitch() {
+	uint32_t strength;
+	uint32_t pinType;
+	Hwi_Params buttonHWIParams;
+	Hwi_Handle buttonHwi;
+	Error_Block eb;
 
-    // enable port N
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPION);
+	// enable port N
+	SysCtlPeripheralEnable(SYSCTL_PERIPH_GPION);
 	// LED2
-    GPIOPinTypeGPIOOutput(GPIO_PORTN_BASE, GPIO_PIN_0);
+	GPIOPinTypeGPIOOutput(GPIO_PORTN_BASE, GPIO_PIN_0);
 
-    /* set pin gpio port to output */
-    GPIOPinTypeGPIOOutput(GPIO_PORTN_BASE, GPIO_PIN_1);
-    /*configure pad as standard pin with default output current*/
-    GPIOPadConfigGet(GPIO_PORTN_BASE, GPIO_PIN_1, &strength, &pinType);
-    GPIOPadConfigSet(GPIO_PORTN_BASE, GPIO_PIN_1, strength, GPIO_PIN_TYPE_STD);
+	/* set pin gpio port to output */
+	GPIOPinTypeGPIOOutput(GPIO_PORTN_BASE, GPIO_PIN_1);
+	/*configure pad as standard pin with default output current*/
+	GPIOPadConfigGet(GPIO_PORTN_BASE, GPIO_PIN_1, &strength, &pinType);
+	GPIOPadConfigSet(GPIO_PORTN_BASE, GPIO_PIN_1, strength, GPIO_PIN_TYPE_STD);
 
-    /* turn off led 1 */
-    GPIOPinWrite(GPIO_PORTN_BASE, GPIO_PIN_1, 0);
+	/* turn off led 1 */
+	GPIOPinWrite(GPIO_PORTN_BASE, GPIO_PIN_1, 0);
 
-    /* configure switch 1 with pull up as input on GPIO_PIN_0 as pull-up pin */
-    GPIOPinTypeGPIOInput(GPIO_PORTJ_BASE, GPIO_PIN_0);
-    GPIOPadConfigGet(GPIO_PORTJ_BASE, GPIO_PIN_0, &strength, &pinType);
-    GPIOPadConfigSet(GPIO_PORTJ_BASE, GPIO_PIN_0, strength, GPIO_PIN_TYPE_STD_WPU);
+	/* configure switch 1 with pull up as input on GPIO_PIN_0 as pull-up pin */
+	GPIOPinTypeGPIOInput(GPIO_PORTJ_BASE, GPIO_PIN_0);
+	GPIOPadConfigGet(GPIO_PORTJ_BASE, GPIO_PIN_0, &strength, &pinType);
+	GPIOPadConfigSet(GPIO_PORTJ_BASE, GPIO_PIN_0, strength,
+			GPIO_PIN_TYPE_STD_WPU);
 
-    Error_init(&eb);
-    Hwi_Params_init(&buttonHWIParams);
-    buttonHWIParams.arg = 0;
-    buttonHWIParams.enableInt = false;
+	Error_init(&eb);
+	Hwi_Params_init(&buttonHWIParams);
+	buttonHWIParams.arg = 0;
+	buttonHWIParams.enableInt = false;
 
-    buttonHwi = Hwi_create(INT_GPIOJ_TM4C129, ButtonFunction, &buttonHWIParams, &eb);
+	buttonHwi = Hwi_create(INT_GPIOJ_TM4C129, ButtonFunction, &buttonHWIParams,
+			&eb);
 
-    if (buttonHwi == NULL)
-    {
-    	System_abort("Button Hardware interrupt create failed.");
-    }
-    Hwi_enableInterrupt(INT_GPIOJ_TM4C129);
-    GPIOIntEnable(GPIO_PORTJ_BASE, GPIO_INT_PIN_0);
+	if (buttonHwi == NULL) {
+		System_abort("Button Hardware interrupt create failed.");
+	}
+	Hwi_enableInterrupt(INT_GPIOJ_TM4C129);
+	GPIOIntEnable(GPIO_PORTJ_BASE, GPIO_INT_PIN_0);
 
 }
 
@@ -132,6 +135,13 @@ int SetupUartTask(void) {
 	GPIOPinConfigure(GPIO_PC4_U7RX);
 	GPIOPinConfigure(GPIO_PC5_U7TX);
 	GPIOPinTypeUART(GPIO_PORTC_BASE, GPIO_PIN_4 | GPIO_PIN_5);
+
+	/* Enable and configure the peripherals used by the UART6 */
+	SysCtlPeripheralEnable(GPIO_PORTP_BASE);
+	SysCtlPeripheralEnable(SYSCTL_PERIPH_UART6);
+	GPIOPinConfigure(GPIO_PP0_U6RX);
+	GPIOPinConfigure(GPIO_PP1_U6TX);
+	GPIOPinTypeUART(GPIO_PORTP_BASE, GPIO_PIN_0 | GPIO_PIN_1);
 
 	UART_init();
 
@@ -163,11 +173,15 @@ static void TransferFunction(UArg arg0, UArg arg1) {
 	UInt firedEvents;
 	UART_Handle uart7;
 	UART_Params uart7Params;
-	char result[20 + 1]; // +1 for \0, must be transferred
 	int length;
 	int precision;
 	int width;
 	float value;
+	bool convert;
+	int len;
+	PositionType* position;
+	DateTimeType* dateTime;
+	char* destination;
 
 	UART_Params_init(&uart7Params);
 	uart7Params.writeDataMode = UART_DATA_BINARY;
@@ -183,31 +197,21 @@ static void TransferFunction(UArg arg0, UArg arg1) {
 
 	while (true) {
 		firedEvents = Event_pend(transferEvent, Event_Id_NONE,
-				TRANSFER_MESSAGE_EVENT,
-				BIOS_WAIT_FOREVER);
+		TRANSFER_MESSAGE_EVENT,
+		BIOS_WAIT_FOREVER);
 		if (firedEvents & TRANSFER_MESSAGE_EVENT) {
 			// Get the posted message.
 			// Mailbox_pend() will not block since Event_pend()
 			// has guaranteed that a message is available.
 			Mailbox_pend(transferMailbox, &message, BIOS_NO_WAIT);
+			convert = true;
 			switch (message.kind) {
-			case TRANSFER_TEMPERATURE:
-				result[0] = ID_TEMPERATURE;
-				width = 1;
-				precision = TEMPERATURE_PRECISION;
-				if (TEMPERATURE_PRECISION > 0)
-				{
-					width = 3;
-				}
-				value = message.value;
-				break;
 			case TRANSFER_PRESSURE:
 				result[0] = ID_PRESSURE;
-                value = message.value / 100 ; /* hPa */
+				value = message.value / 100; /* hPa */
 				width = 1;
 				precision = PRESSURE_PRECISION;
-				if (PRESSURE_PRECISION > 0)
-				{
+				if (PRESSURE_PRECISION > 0) {
 					width = 3;
 				}
 				break;
@@ -215,19 +219,47 @@ static void TransferFunction(UArg arg0, UArg arg1) {
 				result[0] = ID_ALTITUDE;
 				value = message.value;
 				precision = ALTITUDE_PRECISION;
-				if (ALTITUDE_PRECISION > 0)
-				{
+				if (ALTITUDE_PRECISION > 0) {
 					width = 3;
 				}
 				break;
+			case TRANSFER_GPS_LOCATION:
+				result[0] = ID_LOCATION;
+				convert = false;
+				position = message.data;
+				len = strlen(position->latitude);
+				memcpy(&result[1], position->latitude, len);
+				destination = result + 1 + len;
+				len = strlen(position->longitude);
+				memcpy(destination, position->longitude, len);
+				destination += len;
+				*destination = '\0';
+				break;
+
+			case TRANSFER_DATE_TIME:
+				result[0] = ID_DATE_TIME;
+				convert = false;
+				dateTime = message.data;
+				len = sizeof(dateTime->dateTimeString);
+				memcpy(&result[1], dateTime->dateTimeString, len);
+				break;
+
 			default:
-				System_printf("Error TransferFunction: Received unknown message %d.\n",
+				System_printf(
+						"Error TransferFunction: Received unknown message %d.\n",
 						message.kind);
 				System_flush();
 				// unknown, nothing special
 				continue; /* no break, would be unreachable code */
 			}
-			(void)snprintf (&result[1], 20, "%*.*f", width, precision, value);
+			if (convert) {
+				(void) snprintf(&result[1], 20, "%*.*f", width, precision,
+						value);
+			}
+			else
+			{
+				length = strlen(result) + 1;
+			}
 			length = strlen(result) + 1;
 			UART_write(uart7, &result[0], length);
 #ifdef DEBUG

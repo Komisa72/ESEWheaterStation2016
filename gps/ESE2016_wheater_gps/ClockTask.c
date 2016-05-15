@@ -19,7 +19,6 @@
 /* defines */
 
 /* global */
-Event_Handle measureThermoEvent; // trigger measurement of thermo click
 Event_Handle measureAltitudeEvent; // trigger measurement of altitude click
 Event_Handle transferEvent; // trigger transfer of read data
 Mailbox_Handle transferMailbox; // contains data to be transferred
@@ -33,10 +32,6 @@ Mailbox_Handle transferMailbox; // contains data to be transferred
 static void ClockFunction(UArg arg0)
 {
 	UInt eventId;
-#if USE_THERMO_CLICK
-    eventId = MEASURE_THERMO_EVENT;
-	Event_post(measureThermoEvent, eventId);
-#endif
 #if USE_ALTITUDE_CLICK
     eventId = MEASURE_ALTITUDE_EVENT;
 	Event_post(measureAltitudeEvent, eventId);
@@ -63,11 +58,6 @@ int SetupClockTask(uint32_t wait_ticks)
 
 	Error_init(&eb);
 
-	measureThermoEvent = Event_create(NULL, &eb);
-	if (measureThermoEvent == NULL)
-	{
-		System_abort("Measure thermo event create failed");
-	}
 	measureAltitudeEvent = Event_create(NULL, &eb);
 	if (measureAltitudeEvent == NULL)
 	{

@@ -48,7 +48,7 @@
 /* Forward declarations */
 extern int SetupAltiudeTask(BoosterPackType boosterPack);
 extern int SetupClockTask(uint32_t wait_ticks);
-extern int setup_Temp_Task(BoosterPackType boosterPack);
+extern int setupGpsTask(BoosterPackType boosterPack);
 
 /**
  * /fn main
@@ -58,8 +58,11 @@ extern int setup_Temp_Task(BoosterPackType boosterPack);
 int main(void)
 {
     uint32_t ui32SysClock;
+#if USE_THERMO_CLICK
     BoosterPackType boosterPackThermo = BOOSTER_PACK_2;
+#endif
     BoosterPackType boosterPackAltitude = BOOSTER_PACK_1;
+    BoosterPackType boosterPackGps = BOOSTER_PACK_2;
 
     /* Call board init functions. */
     ui32SysClock = Board_initGeneral(120*1000*1000);
@@ -79,6 +82,9 @@ int main(void)
     (void) SetupAltiudeTask(boosterPackAltitude);
     System_printf("Created Altitude Task\n");
 #endif
+
+	setupGpsTask(boosterPackGps);
+    System_printf("Created gps Task\n");
 
     (void) SetupClockTask(READ_SAMPLE_RATE);
     System_printf("Created Clock Task\n");

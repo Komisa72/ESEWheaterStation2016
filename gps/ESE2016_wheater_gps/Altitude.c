@@ -308,7 +308,6 @@ void ReadData(I2C_Handle i2c, ReadDataType* pread) {
 	highTemp = MPL3115A2_Read(i2c, MPL3115A2_OUT_T_MSB);
 	lowTemp = MPL3115A2_Read(i2c, MPL3115A2_OUT_T_LSB);
 
-	System_printf("X%d\n", highTemp);
 
 }
 
@@ -423,10 +422,12 @@ void AltitudeFunction(UArg arg0, UArg arg1) {
 	float pressure;
 	TransferMessageType altimeter;
 	TransferMessageType barometer;
+	uint8_t status = 0;
+#if 0
 	uint16_t targetAltitude;
 	int8_t temp;
-	uint8_t status = 0;
 	uint16_t windowAltitude;
+#endif // 0
 
 	altimeter.kind = TRANSFER_ALTITUDE;
 	barometer.kind = TRANSFER_PRESSURE;
@@ -456,6 +457,7 @@ void AltitudeFunction(UArg arg0, UArg arg1) {
 
 	// init interrupt
 	SwitchToStandby(i2c);
+#if 0
 	// setup both interrupts active high
 	MPL3115A2_Write(i2c, MPL3115A2_CTRL_REG3, 0x22);
 	SwitchToAltimeter(i2c);
@@ -479,6 +481,7 @@ void AltitudeFunction(UArg arg0, UArg arg1) {
 	GPIOIntTypeSet(GPIO_PORTH_BASE, GPIO_INT_PIN_2, GPIO_RISING_EDGE);
 	Hwi_enableInterrupt(INT_GPIOH_TM4C129);
 	GPIOIntEnable(GPIO_PORTH_BASE, GPIO_INT_PIN_2);
+#endif // 0
 
 	SwitchToActive(i2c);
 	while (true) {

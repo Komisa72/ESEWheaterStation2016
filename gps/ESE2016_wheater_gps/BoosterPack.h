@@ -9,8 +9,8 @@
 #define BOOSTERPACK_H_
 
 // compile time switch to turn on / off used hardware
-//#define USE_THERMO_CLICK   0
-#define USE_THERMO_CLICK   1
+#define USE_THERMO_CLICK   0
+//#define USE_THERMO_CLICK   1
 
 // compile time switch to turn on / off used hardware
 //#define USE_ALTITUDE_CLICK   0
