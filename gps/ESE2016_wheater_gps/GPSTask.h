@@ -23,6 +23,9 @@ typedef struct AltiudeStruct {
 	char altitude[10]; // in meter
 } AltitudeType;
 
+// forward references
+extern int SetupGpsTask();
+
 
 
 #endif /* GPSTASK_H_ */

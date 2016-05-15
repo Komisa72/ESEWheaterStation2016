@@ -55,11 +55,12 @@ static const float PRES_FRAC_B5 = 0.5;   // Fractional value for bit 5
 static const float PRES_FRAC_B4 = 0.25;  // Fractional value for bit 4
 
 /* Forward references */
-void ReadData(I2C_Handle i2c, ReadDataType* pread);
-float PressureRead(I2C_Handle i2c);
-void SwitchToStandby(I2C_Handle i2c);
-void SetOSR(I2C_Handle i2c, unsigned char value);
+static void ReadData(I2C_Handle i2c, ReadDataType* pread);
+static float PressureRead(I2C_Handle i2c);
+static void SwitchToStandby(I2C_Handle i2c);
+static void SetOSR(I2C_Handle i2c, unsigned char value);
 
+#if 0
 /**
  * /fn AlarmFunction
  * /brief Interrupt function of altitude click.
@@ -79,6 +80,7 @@ static void AlarmFunction(UArg arg) {
 	Event_post(interruptEvent, eventId);
 
 }
+#endif // 0
 
 /**
  * /fn MPL3115A2_Write
@@ -88,7 +90,7 @@ static void AlarmFunction(UArg arg) {
  * /param value to be written.
  * /return void.
  */
-void MPL3115A2_Write(I2C_Handle i2c, uint8_t address, uint8_t value) {
+static void MPL3115A2_Write(I2C_Handle i2c, uint8_t address, uint8_t value) {
 	I2C_Transaction i2cTransaction;
 	uint8_t txBuffer[2];
 
@@ -115,7 +117,7 @@ void MPL3115A2_Write(I2C_Handle i2c, uint8_t address, uint8_t value) {
  * /param register address where to read.
  * /return read value.
  */
-uint8_t MPL3115A2_Read(I2C_Handle i2c, uint8_t address) {
+static uint8_t MPL3115A2_Read(I2C_Handle i2c, uint8_t address) {
 	I2C_Transaction i2cTransaction;
 	uint8_t txBuffer[2];
 	uint8_t rxBuffer[2];
@@ -141,7 +143,7 @@ uint8_t MPL3115A2_Read(I2C_Handle i2c, uint8_t address) {
  * /param i2c handle to open I2C connection.
  * /return void.
  */
-void SwitchToStandby(I2C_Handle i2c) {
+static void SwitchToStandby(I2C_Handle i2c) {
 	uint8_t controlRegister1;
 	controlRegister1 = MPL3115A2_Read(i2c, MPL3115A2_CTRL_REG1);
 	ClearBit(controlRegister1, BIT_STANDBY); // reset Standby bit (switch to Standby mode)
@@ -154,7 +156,7 @@ void SwitchToStandby(I2C_Handle i2c) {
  * /param i2c handle to open I2C connection.
  * /return void.
  */
-void SwitchToActive(I2C_Handle i2c)
+static void SwitchToActive(I2C_Handle i2c)
 {
 	uint8_t controlRegister1;
 	controlRegister1 = MPL3115A2_Read(i2c, MPL3115A2_CTRL_REG1);
@@ -168,7 +170,7 @@ void SwitchToActive(I2C_Handle i2c)
  * /param i2c handle to open I2C connection.
  * /return void.
  */
-void SwitchToAltimeter(I2C_Handle i2c)
+static void SwitchToAltimeter(I2C_Handle i2c)
 {
 	uint8_t controlRegister1;
 	controlRegister1 = MPL3115A2_Read(i2c, MPL3115A2_CTRL_REG1);
@@ -182,7 +184,7 @@ void SwitchToAltimeter(I2C_Handle i2c)
  * /param i2c handle to open I2C connection.
  * /return void.
  */
-void SwitchToBarometer(I2C_Handle i2c)
+static void SwitchToBarometer(I2C_Handle i2c)
 {
 	unsigned short controlRegister1;
 	controlRegister1 = MPL3115A2_Read(i2c, MPL3115A2_CTRL_REG1);
@@ -196,7 +198,7 @@ void SwitchToBarometer(I2C_Handle i2c)
  * /param i2c handle to open I2C connection.
  * /return void.
  */
-void OneShotMeasurement(I2C_Handle i2c) {
+static void OneShotMeasurement(I2C_Handle i2c) {
 	uint8_t controlRegister1;
 
 	controlRegister1 = MPL3115A2_Read(i2c, MPL3115A2_CTRL_REG1);
@@ -212,7 +214,7 @@ void OneShotMeasurement(I2C_Handle i2c) {
  * /param i2c handle to open I2C connection.
  * /return void.
  */
-void MPL3115A2Calibrate(I2C_Handle i2c) {
+static void MPL3115A2Calibrate(I2C_Handle i2c) {
 	float current_pressure;
 	float calibration_pressure;
 	float sea_pressure;
@@ -264,7 +266,7 @@ void MPL3115A2Calibrate(I2C_Handle i2c) {
  * /param value 0 to 7.
  * /return void.
  */
-void SetOSR(I2C_Handle i2c, unsigned char value) {
+static void SetOSR(I2C_Handle i2c, unsigned char value) {
 	uint8_t control_register;
 	uint8_t mask = ~(7 << 3);
 
@@ -283,7 +285,7 @@ void SetOSR(I2C_Handle i2c, unsigned char value) {
  * /param i2c handle to open I2C connection.
  * /return void.
  */
-void MPL3115A2Init(I2C_Handle i2c) {
+static void MPL3115A2Init(I2C_Handle i2c) {
 	SetOSR(i2c, 7);  // oversampling 128/ 512ms
 	// enable pressure/temperature data ready flags/interrupt
 	MPL3115A2_Write(i2c, MPL3115A2_PT_DATA_CFG, 0x7);
@@ -296,7 +298,7 @@ void MPL3115A2Init(I2C_Handle i2c) {
  * /param pread pointer where to store the read values.
  * /return void.
  */
-void ReadData(I2C_Handle i2c, ReadDataType* pread) {
+static void ReadData(I2C_Handle i2c, ReadDataType* pread) {
 	uint8_t lowTemp;  // read temperature also to reset interrupt just in case
 	uint8_t highTemp;
 
@@ -317,7 +319,7 @@ void ReadData(I2C_Handle i2c, ReadDataType* pread) {
  * /param i2c handle to open I2C connection.
  * /return Pressure in pascal.
  */
-float PressureRead(I2C_Handle i2c) {
+static float PressureRead(I2C_Handle i2c) {
 	ReadDataType read;
 	unsigned long pressure_int;
 	float pressure_frac_value = 0;
@@ -346,7 +348,7 @@ float PressureRead(I2C_Handle i2c) {
  * /param i2c handle to open I2C connection.
  * /return Altitude in meter.
  */
-float AltitudeRead(I2C_Handle i2c) {
+static float AltitudeRead(I2C_Handle i2c) {
 	ReadDataType read;
 	float altitude_value;
 	float altitude_frac_value = 0;
@@ -374,6 +376,7 @@ float AltitudeRead(I2C_Handle i2c) {
 	return altitude_value = altitude_value + altitude_frac_value;
 }
 
+#if 0
 /**
  * /fn InterruptFunction
  * /brief Task runs when interrupt has occured.
@@ -384,7 +387,7 @@ float AltitudeRead(I2C_Handle i2c) {
  * /param arg1 not used.
  * /return void.
  */
-void InterruptFunction(UArg arg0, UArg arg1) {
+static void InterruptFunction(UArg arg0, UArg arg1) {
 	uint8_t value;
 
 	while (true) {
@@ -407,6 +410,7 @@ void InterruptFunction(UArg arg0, UArg arg1) {
 	}
 
 }
+#endif // 0
 
 /**
  * /fn AltitudeFunction
@@ -414,7 +418,7 @@ void InterruptFunction(UArg arg0, UArg arg1) {
  * /param arg0 is BoosterPackType to identify which booster pack is used.
  * /param arg1 always NULL.
  */
-void AltitudeFunction(UArg arg0, UArg arg1) {
+static void AltitudeFunction(UArg arg0, UArg arg1) {
 	I2C_Params i2cParams;
 	unsigned int index;
 	//I2C_Handle i2c;
@@ -538,7 +542,7 @@ void AltitudeFunction(UArg arg0, UArg arg1) {
 }
 
 /**
- * /fn SetupAltiudeTask
+ * /fn setupAltiudeTask
  * /brief Initialise altitude task and start it.
  * /param boosterPack which booster pack is used for altitude click.
  * /return always 0.
@@ -546,11 +550,13 @@ void AltitudeFunction(UArg arg0, UArg arg1) {
 int SetupAltiudeTask(BoosterPackType boosterPack) {
 	Task_Params taskAltitudeParams;
 	Task_Handle taskAltitude;
+	Error_Block eb;
+#if 0
 	Hwi_Params hwiParams;
 	Hwi_Handle altitudeHwi;
-	Error_Block eb;
 	Task_Params taskInterruptParams;
 	Task_Handle taskInterrupt;
+#endif // 0
 
 	Error_init(&eb);
 	Task_Params_init(&taskAltitudeParams);
@@ -570,7 +576,7 @@ int SetupAltiudeTask(BoosterPackType boosterPack) {
 		System_abort("Interrupt event create failed");
 	}
 
-
+#if 0
 	Error_init(&eb);
 	Task_Params_init(&taskInterruptParams);
 	taskInterruptParams.stackSize = 1024;
@@ -593,6 +599,7 @@ int SetupAltiudeTask(BoosterPackType boosterPack) {
 	if (altitudeHwi == NULL) {
 		System_abort("Altitude click hardware interrupt create failed.");
 	}
+#endif // 0
 
 	return 0;
 }

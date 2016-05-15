@@ -44,25 +44,32 @@ static char gpsString[82]; // NMEA sentence max. 80 characters + CR + LF
 
 // * + 2 bytes checksum + CR + LF
 #define TRAILING_CHARACTERS 5
+// ringbuffer size
 #define SIZE_TRANSFER_ARRAY 10
 
+// ringbuffer for transferring position values
 static PositionType transferPosition[SIZE_TRANSFER_ARRAY];
+// ringbuffer for transferring altitude values
 static PositionType transferAltitude[SIZE_TRANSFER_ARRAY];
+// ringbuffer for transferring date time values
 static DateTimeType transferDateTime[SIZE_TRANSFER_ARRAY];
 
 
 // forward references
-static void parseData();
+static void ParseData();
 
+// sent only new data if date/time differs
 static Int32 hhmmssLast = -1;
 static Int32 ddmmyyLast = -1;
 
 // functions
 
 /*
- * gpsFunction Task function for reading gps data.
+ * /fn gpsFunction Task function for reading gps data.
+ * /param arg0 always NULL
+ * /param arg0 always NULL
  */
-void gpsFunction(UArg arg0, UArg arg1) {
+static void GpsFunction(UArg arg0, UArg arg1) {
 	UART_Handle uart6;
 	UART_Params uart6Params;
 	int length = 1;
@@ -73,6 +80,8 @@ void gpsFunction(UArg arg0, UArg arg1) {
 	int waitChecksum = 0;
 	int tranferPositionIndex = -1;
 	int transferAltitudeIndex = -1;
+
+	// gps click is on booster pack 2
 
 	UART_Params_init(&uart6Params);
 	uart6Params.writeDataMode = UART_DATA_BINARY;
@@ -114,7 +123,7 @@ void gpsFunction(UArg arg0, UArg arg1) {
 			if (full)
 			{
 				full = false;
-				parseData(&tranferPositionIndex, &transferAltitudeIndex);
+				ParseData(&tranferPositionIndex, &transferAltitudeIndex);
 #ifdef DEBUG
 				start = false;
 #endif
@@ -122,13 +131,15 @@ void gpsFunction(UArg arg0, UArg arg1) {
 			++index;
 		}
 	}
-
 }
 
 /*
- * parseData
+ * /fn parseData parse data read out of gps3 click
+ *
+ * /param transferPositionIndex where to write in the ringbuffer of positions
+ * /param transferAltitudeIndex where to write in the ringbuffer of altitudes
  */
-static void parseData(int* transferPositionIndex, int* transferAltitudeIndex)
+static void ParseData(int* transferPositionIndex, int* transferAltitudeIndex)
 {
 	char* timeStart;
 	char* timeEnd;
@@ -153,8 +164,8 @@ static void parseData(int* transferPositionIndex, int* transferAltitudeIndex)
 	Int32 ddmmyy;
 	int i;
 	int faktor;
-	bool transfer;
 	int k;
+	bool transfer;
 
 	if (strstr(gpsString, "GPRMC") != NULL)
 	{
@@ -198,10 +209,11 @@ static void parseData(int* transferPositionIndex, int* transferAltitudeIndex)
 			}
 			transfer = (hhmmss != hhmmssLast) || (ddmmyy != ddmmyyLast);
 
-			{
+			if (transfer) {
 				hhmmssLast = hhmmss;
 				ddmmyyLast = ddmmyy;
 
+				// via indexPos realize a ringbuffer for storing the data
 				indexPos = *transferPositionIndex;
 				indexPos = (indexPos + 1) %  SIZE_TRANSFER_ARRAY;
 				*transferPositionIndex = indexPos;
@@ -246,11 +258,13 @@ static void parseData(int* transferPositionIndex, int* transferAltitudeIndex)
 				memcpy(&transferPosition[indexPos].longitude[5], longitudeStart, count);
 				transferPosition[indexPos].longitude[5 + count] = '\0';
 
+                // let the message consumer use a pointer into my ringbuffer of date/time
 				dateTimeTransfer.data = &transferDateTime[indexPos];
 				dateTimeTransfer.kind = TRANSFER_DATE_TIME;
 				/* implicitly posts TRANSFER_MESSAGE_EVENT to transferEvent */
 				Mailbox_post(transferMailbox, &dateTimeTransfer, BIOS_WAIT_FOREVER);
 
+				// let the message consumer use a pointer into my ringbuffer of positions
 				gpsTransfer.data = &transferPosition[indexPos];
 				gpsTransfer.kind = TRANSFER_GPS_LOCATION;
 				/* implicitly posts TRANSFER_MESSAGE_EVENT to transferEvent */
@@ -263,31 +277,27 @@ static void parseData(int* transferPositionIndex, int* transferAltitudeIndex)
 		// get altitude
 		gpsString[0] = '$';
 	}
-	else
-	{
-		gpsString[0] = '$';
-	}
-
 
 }
 
 /*
- *  setupGpsTask setup task function
+ *  /fn setupGpsTask setup task function
+ *  /return always 0 in case of error a system abort occurs
  */
-int setupGpsTask(BoosterPackType boosterPack) {
+int SetupGpsTask() {
 	/* Setup Task and create it */
-	Task_Params task0Params;
-	Task_Handle task0Handle;
+	Task_Params taskParams;
+	Task_Handle taskHandle;
 	Error_Block eb;
 
 	Error_init(&eb);
-	Task_Params_init(&task0Params);
-	task0Params.stackSize = 2048;
-	task0Params.arg0 = (UArg) boosterPack;
-	task0Params.arg1 = NULL;
-	task0Params.priority = 14;
-	task0Handle = Task_create((Task_FuncPtr) gpsFunction, &task0Params, &eb);
-	if (task0Handle == NULL) {
+	Task_Params_init(&taskParams);
+	taskParams.stackSize = 2048;
+	taskParams.arg0 = NULL;
+	taskParams.arg1 = NULL;
+	taskParams.priority = 14;
+	taskHandle = Task_create((Task_FuncPtr) GpsFunction, &taskParams, &eb);
+	if (taskHandle == NULL) {
 		System_abort("Error creating gps task");
 	}
 	return 0;
