@@ -156,8 +156,7 @@ static void SwitchToStandby(I2C_Handle i2c) {
  * /param i2c handle to open I2C connection.
  * /return void.
  */
-static void SwitchToActive(I2C_Handle i2c)
-{
+static void SwitchToActive(I2C_Handle i2c) {
 	uint8_t controlRegister1;
 	controlRegister1 = MPL3115A2_Read(i2c, MPL3115A2_CTRL_REG1);
 	SetBit(controlRegister1, BIT_STANDBY); // set Standby bit (switch to active mode)
@@ -170,8 +169,7 @@ static void SwitchToActive(I2C_Handle i2c)
  * /param i2c handle to open I2C connection.
  * /return void.
  */
-static void SwitchToAltimeter(I2C_Handle i2c)
-{
+static void SwitchToAltimeter(I2C_Handle i2c) {
 	uint8_t controlRegister1;
 	controlRegister1 = MPL3115A2_Read(i2c, MPL3115A2_CTRL_REG1);
 	SetBit(controlRegister1, BIT_ALTIMETER);
@@ -184,8 +182,7 @@ static void SwitchToAltimeter(I2C_Handle i2c)
  * /param i2c handle to open I2C connection.
  * /return void.
  */
-static void SwitchToBarometer(I2C_Handle i2c)
-{
+static void SwitchToBarometer(I2C_Handle i2c) {
 	unsigned short controlRegister1;
 	controlRegister1 = MPL3115A2_Read(i2c, MPL3115A2_CTRL_REG1);
 	ClearBit(controlRegister1, BIT_ALTIMETER);
@@ -224,14 +221,13 @@ static void MPL3115A2Calibrate(I2C_Handle i2c) {
 
 	// Clear value
 	calibration_pressure = 0;
-	SetOSR(i2c,7);
+	SetOSR(i2c, 7);
 
 	// Calculate current pressure level
 	for (i = 0; i < 8; i++) {
 		OneShotMeasurement(i2c);
 		Task_sleep(550);      // Wait for sensor to read pressure
-		while ((value & BIT_PRESSURE_DATA) != BIT_PRESSURE_DATA)
-		{
+		while ((value & BIT_PRESSURE_DATA) != BIT_PRESSURE_DATA) {
 			value = MPL3115A2_Read(i2c, MPL3115A2_DR_STATUS);
 
 		}
@@ -309,7 +305,6 @@ static void ReadData(I2C_Handle i2c, ReadDataType* pread) {
 	// whole degrees are in register out_t_msb
 	highTemp = MPL3115A2_Read(i2c, MPL3115A2_OUT_T_MSB);
 	lowTemp = MPL3115A2_Read(i2c, MPL3115A2_OUT_T_LSB);
-
 
 }
 
@@ -394,7 +389,7 @@ static void InterruptFunction(UArg arg0, UArg arg1) {
 		// trigger measurement only if event is set
 		Event_pend(interruptEvent, Event_Id_NONE, MEASURE_ALTITUDE_EVENT,
 				BIOS_WAIT_FOREVER);
-		 value = MPL3115A2_Read(i2c, MPL3115A2_INT_SOURCE);
+		value = MPL3115A2_Read(i2c, MPL3115A2_INT_SOURCE);
 
 		if ((value & BIT_SOURCE_TTH) == BIT_SOURCE_TTH)
 		{
@@ -491,14 +486,13 @@ static void AltitudeFunction(UArg arg0, UArg arg1) {
 	while (true) {
 		// trigger measurement only if event is set
 		Event_pend(measureAltitudeEvent, Event_Id_NONE, MEASURE_ALTITUDE_EVENT,
-				BIOS_WAIT_FOREVER);
+		BIOS_WAIT_FOREVER);
 
- 		SwitchToStandby(i2c);
+		SwitchToStandby(i2c);
 		MPL3115A2_Write(i2c, MPL3115A2_CTRL_REG4, BIT_INTERRUPT_TEMP);
 		SwitchToBarometer(i2c);
 		SwitchToActive(i2c);
-		while ((status & BIT_PRESSURE_DATA) != BIT_PRESSURE_DATA)
-		{
+		while ((status & BIT_PRESSURE_DATA) != BIT_PRESSURE_DATA) {
 			Task_sleep(100);
 			status = MPL3115A2_Read(i2c, MPL3115A2_DR_STATUS);
 		}
@@ -511,11 +505,10 @@ static void AltitudeFunction(UArg arg0, UArg arg1) {
 		OneShotMeasurement(i2c);
 		// enable temperature / altitude (pressure) threshold interrupt
 		MPL3115A2_Write(i2c, MPL3115A2_CTRL_REG4, BIT_INTERRUPT_TEMP |
-				BIT_INTERRUPT_ALTITUDE | BIT_INTERRUPT_WINDOW_ALTITUDE);
+		BIT_INTERRUPT_ALTITUDE | BIT_INTERRUPT_WINDOW_ALTITUDE);
 
 		SwitchToActive(i2c);
-		while ((status & BIT_PRESSURE_DATA) != BIT_PRESSURE_DATA)
-		{
+		while ((status & BIT_PRESSURE_DATA) != BIT_PRESSURE_DATA) {
 			Task_sleep(100);
 			status = MPL3115A2_Read(i2c, MPL3115A2_DR_STATUS);
 		}
@@ -569,7 +562,6 @@ int SetupAltiudeTask(BoosterPackType boosterPack) {
 	if (taskAltitude == NULL) {
 		System_abort("Task altitude create failed");
 	}
-
 
 	interruptEvent = Event_create(NULL, &eb);
 	if (interruptEvent == NULL) {

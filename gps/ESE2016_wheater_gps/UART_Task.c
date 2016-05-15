@@ -98,7 +98,7 @@ static void InitializeLedUserSwitch() {
 	GPIOPinTypeGPIOInput(GPIO_PORTJ_BASE, GPIO_PIN_0);
 	GPIOPadConfigGet(GPIO_PORTJ_BASE, GPIO_PIN_0, &strength, &pinType);
 	GPIOPadConfigSet(GPIO_PORTJ_BASE, GPIO_PIN_0, strength,
-			GPIO_PIN_TYPE_STD_WPU);
+	GPIO_PIN_TYPE_STD_WPU);
 
 	Error_init(&eb);
 	Hwi_Params_init(&buttonHWIParams);
@@ -255,9 +255,7 @@ static void TransferFunction(UArg arg0, UArg arg1) {
 			if (convert) {
 				(void) snprintf(&result[1], 20, "%*.*f", width, precision,
 						value);
-			}
-			else
-			{
+			} else {
 				length = strlen(result) + 1;
 			}
 			length = strlen(result) + 1;
